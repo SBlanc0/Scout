@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scout Predictor — Análisis de Fútbol</title>
+<title>Scout Predictor</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -11,42 +11,337 @@
 
 <div class="header">
   <div class="logo">SCOUT<span>predictor</span></div>
-  <div id="api-status" class="api-status">
-    <div class="dot" id="status-dot"></div>
-    <span id="status-text">Conectando...</span>
+  <div class="api-status">
+    <div class="dot" id="sdot"></div>
+    <span id="stxt">Conectando...</span>
   </div>
   <div class="header-tabs">
-    <button class="htab active" onclick="switchMain('matches')">Partidos</button>
-    <button class="htab" onclick="switchMain('tracker')">Mis apuestas</button>
+    <button class="htab active" onclick="sw('matches')">Partidos</button>
+    <button class="htab" onclick="sw('tracker')">Mis apuestas</button>
   </div>
 </div>
 
 <div class="main">
   <div class="sidebar">
     <div class="s-label">Ligas</div>
-    <button class="league-btn active" onclick="filterLeague(null,this)"><span class="league-flag">🌍</span><span>Todas</span></button>
-    <button class="league-btn" onclick="filterLeague(39,this)"><span class="league-flag">🏴󠁧󠁢󠁥󠁮󠁧󠁿</span><span>Premier League</span></button>
-    <button class="league-btn" onclick="filterLeague(140,this)"><span class="league-flag">🇪🇸</span><span>La Liga</span></button>
-    <button class="league-btn" onclick="filterLeague(2,this)"><span class="league-flag">⭐</span><span>Champions</span></button>
-    <button class="league-btn" onclick="filterLeague(135,this)"><span class="league-flag">🇮🇹</span><span>Serie A</span></button>
-    <button class="league-btn" onclick="filterLeague(78,this)"><span class="league-flag">🇩🇪</span><span>Bundesliga</span></button>
-
+    <button class="lb active" onclick="fl(null,this)"><span>🌍</span><span>Todas</span></button>
+    <button class="lb" onclick="fl(39,this)"><span>🏴󠁧󠁢󠁥󠁮󠁧󠁿</span><span>Premier League</span></button>
+    <button class="lb" onclick="fl(140,this)"><span>🇪🇸</span><span>La Liga</span></button>
+    <button class="lb" onclick="fl(2,this)"><span>⭐</span><span>Champions</span></button>
+    <button class="lb" onclick="fl(135,this)"><span>🇮🇹</span><span>Serie A</span></button>
+    <button class="lb" onclick="fl(78,this)"><span>🇩🇪</span><span>Bundesliga</span></button>
     <div class="s-label">Fecha</div>
-    <button class="league-btn active" onclick="setDate('today',this)"><span class="league-flag">⚡</span><span>Hoy</span></button>
-    <button class="league-btn" onclick="setDate('tomorrow',this)"><span class="league-flag">📅</span><span>Mañana</span></button>
-    <button class="league-btn" onclick="setDate('week',this)"><span class="league-flag">🗓</span><span>Esta semana</span></button>
-
-    <div class="s-label" style="margin-top:20px">Cuota diaria</div>
-    <div class="quota-info" id="quota-info">— / 100 llamadas</div>
+    <button class="lb active" onclick="fd('today',this)"><span>⚡</span><span>Hoy</span></button>
+    <button class="lb" onclick="fd('tomorrow',this)"><span>📅</span><span>Mañana</span></button>
+    <button class="lb" onclick="fd('week',this)"><span>🗓</span><span>Esta semana</span></button>
+    <div class="s-label" style="margin-top:18px">Cuota</div>
+    <div style="padding:5px 10px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace" id="quota">— / 100</div>
   </div>
-
-  <div class="content" id="main-content">
+  <div class="content" id="mc">
     <div class="loader"><div class="spinner"></div><span>Cargando partidos...</span></div>
   </div>
 </div>
 
-<script src="api.js"></script>
-<script src="engine.js"></script>
-<script src="app.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// API.JS — Conexión a API-Football
+// ═══════════════════════════════════════════════════════════════════════════════
+const API_KEY  = '1dce940e7ef0026ffb9f1e27b5ab22de';
+const BASE_URL = 'https://v3.football.api-sports.io';
+const CACHE_TTL = 30 * 60 * 1000;
+
+function cacheGet(key) {
+  try {
+    const d = JSON.parse(sessionStorage.getItem('scout_' + key));
+    if (d && (Date.now() - d.ts) < CACHE_TTL) return d.val;
+  } catch (e) {}
+  return null;
+}
+
+function cacheSet(key, val) {
+  try {
+    sessionStorage.setItem('scout_' + key, JSON.stringify({ ts: Date.now(), val }));
+  } catch (e) {}
+}
+
+async function apiFetch(endpoint) {
+  const cached = cacheGet(endpoint);
+  if (cached) return cached;
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'GET',
+    headers: { 'x-apisports-key': API_KEY }
+  });
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.errors && Object.keys(data.errors).length > 0)
+    throw new Error(Object.values(data.errors).join(', '));
+
+  cacheSet(endpoint, data);
+  return data;
+}
+
+function dateStr(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
+}
+
+async function checkStatus() {
+  try {
+    const data = await apiFetch('/status');
+    const req = data.response?.requests;
+    document.getElementById('sdot').className = 'dot live';
+    document.getElementById('stxt').textContent = 'API conectada';
+    if (req) document.getElementById('quota').textContent = `${req.current} / ${req.limit_day}`;
+  } catch (e) {
+    document.getElementById('sdot').className = 'dot error';
+    document.getElementById('stxt').textContent = 'Error de conexión';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENGINE.JS — Motor de predicción Poisson
+// ═══════════════════════════════════════════════════════════════════════════════
+function fact(n) { if (n <= 1) return 1; let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+function pois(l, k) { const L = Math.max(l, 0.01); return Math.pow(L, k) * Math.exp(-L) / fact(k); }
+
+function fmult(form) {
+  const p = { W: 3, D: 1, L: 0 };
+  if (!form || !form.length) return 1;
+  const w = form.reduce((a, r, i) => a + p[r] * (i + 1), 0);
+  const m = form.reduce((a, _, i) => a + 3 * (i + 1), 0);
+  return 0.7 + 0.6 * (w / m);
+}
+
+function predict(hn, an, hgf, agf, hga, aga, hf, af) {
+  const hm = fmult(hf), am = fmult(af);
+  const lH = Math.max(0.3, (hgf || 1.4) * hm * (1 / (aga || 1.2)) * 1.15);
+  const lA = Math.max(0.3, (agf || 1.1) * am * (1 / (hga || 1.1)));
+  let pH = 0, pD = 0, pA = 0, btts = 0, o25 = 0;
+  for (let i = 0; i <= 7; i++) for (let j = 0; j <= 7; j++) {
+    const p = pois(lH, i) * pois(lA, j);
+    if (i > j) pH += p; else if (i === j) pD += p; else pA += p;
+    if (i > 0 && j > 0) btts += p;
+    if (i + j > 2.5) o25 += p;
+  }
+  const t = pH + pD + pA, h = pH / t, d = pD / t, a = pA / t;
+  const conf = Math.max(h, d, a);
+  const w = h > a && h > d ? 'home' : a > h && a > d ? 'away' : 'draw';
+  const wn = w === 'home' ? hn : w === 'away' ? an : 'Empate';
+  const best = conf > 0.52 ? `1X2: Victoria ${wn}` : o25 > 0.55 ? 'Over 2.5 goles' : btts > 0.55 ? 'BTTS — Ambos marcan' : `Doble oportunidad: ${h > a ? '1X' : 'X2'}`;
+  return { h, d, a, lH, lA, eg: lH + lA, btts, o25, conf, cl: conf > 0.55 ? 'h' : conf > 0.42 ? 'm' : 'l', cn: conf > 0.55 ? 'Alta' : conf > 0.42 ? 'Media' : 'Baja', w, wn, best, oH: (1/h).toFixed(2), oD: (1/d).toFixed(2), oA: (1/a).toFixed(2) };
+}
+
+function standStats(data, tid) {
+  try {
+    for (const lg of data.response) for (const g of lg.league.standings) {
+      const t = g.find(x => x.team.id === tid);
+      if (t) { const p = t.all.played || 1; return { gf: t.all.goals.for / p, ga: t.all.goals.against / p, form: t.form ? t.form.split('').slice(-5) : [] }; }
+    }
+  } catch (e) {}
+  return { gf: 1.3, ga: 1.2, form: [] };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// APP.JS — Lógica principal
+// ═══════════════════════════════════════════════════════════════════════════════
+const LEAGUES = [39, 140, 2, 135, 78];
+const LI = { 39:{n:'Premier League',f:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'}, 140:{n:'La Liga',f:'🇪🇸'}, 2:{n:'Champions',f:'⭐'}, 135:{n:'Serie A',f:'🇮🇹'}, 78:{n:'Bundesliga',f:'🇩🇪'} };
+const LIVE_ST = ['1H','HT','2H','ET','BT','P','SUSP','INT'];
+const DONE_ST = ['FT','AET','PEN'];
+const DAYS = {Monday:'Lunes',Tuesday:'Martes',Wednesday:'Miércoles',Thursday:'Jueves',Friday:'Viernes',Saturday:'Sábado',Sunday:'Domingo'};
+const MONTHS = {January:'enero',February:'febrero',March:'marzo',April:'abril',May:'mayo',June:'junio',July:'julio',August:'agosto',September:'septiembre',October:'octubre',November:'noviembre',December:'diciembre'};
+
+let cLeague = null, cDate = 'today', fixtures = [], bets = [];
+try { const s = JSON.parse(localStorage.getItem('sb3') || '[]'); if (Array.isArray(s)) bets = s; } catch(e) {}
+
+function fl(id, el) { cLeague = id; document.querySelectorAll('.sidebar .lb').forEach(b => b.classList.remove('active')); el.classList.add('active'); load(); }
+function fd(d, el) { cDate = d; document.querySelectorAll('.sidebar .lb').forEach(b => b.classList.remove('active')); el.classList.add('active'); load(); }
+function sw(v) { document.querySelectorAll('.htab').forEach((b,i) => b.classList.toggle('active', i === (v==='matches'?0:1))); v==='matches' ? load() : renderTracker(); }
+
+function fmtDate(ds) {
+  const d = new Date(ds + 'T12:00:00');
+  const day = DAYS[d.toLocaleDateString('en-US', {weekday:'long'})] || '';
+  const mon = MONTHS[d.toLocaleDateString('en-US', {month:'long'})] || '';
+  const pre = ds === dateStr(0) ? 'Hoy — ' : ds === dateStr(1) ? 'Mañana — ' : '';
+  return `${pre}${day} ${d.getDate()} ${mon}`;
+}
+
+async function load() {
+  const mc = document.getElementById('mc');
+  mc.innerHTML = '<div class="loader"><div class="spinner"></div><span>Cargando partidos...</span></div>';
+  const dates = cDate==='today' ? [dateStr(0)] : cDate==='tomorrow' ? [dateStr(1)] : Array.from({length:7},(_,i)=>dateStr(i));
+  const lgs = cLeague ? [cLeague] : LEAGUES;
+  fixtures = [];
+  try {
+    for (const date of dates) for (const lid of lgs) {
+      const season = new Date().getFullYear();
+      const data = await apiFetch(`/fixtures?league=${lid}&season=${season}&date=${date}`);
+      if (data.response) data.response.forEach(f => { f._lid = lid; f._li = LI[lid]; fixtures.push(f); });
+    }
+    if (!fixtures.length) { mc.innerHTML = '<div class="empty">No hay partidos para este período.<br>Prueba con "Mañana" o "Esta semana".</div>'; return; }
+    renderList();
+  } catch(e) {
+    mc.innerHTML = `<div class="err">⚠️ Error: ${e.message}<br><small>Revisa la consola del navegador (F12) para más detalles.</small></div>`;
+  }
+}
+
+function renderList() {
+  const mc = document.getElementById('mc');
+  const grp = {};
+  fixtures.forEach(f => { const k = f.fixture.date.split('T')[0]; if (!grp[k]) grp[k] = []; grp[k].push(f); });
+  let html = '<div class="cn">📡 Datos reales · Caché 30 min</div>';
+  Object.keys(grp).sort().forEach(date => {
+    const fxs = grp[date];
+    html += `<div class="sh"><div class="st">${fmtDate(date)}</div><div class="ss2">${fxs.length} partido${fxs.length>1?'s':''}</div></div>`;
+    fxs.forEach(f => {
+      const st = f.fixture.status.short, live = LIVE_ST.includes(st), done = DONE_ST.includes(st);
+      const t = new Date(f.fixture.date).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'});
+      const sc = `${f.goals.home??'?'}-${f.goals.away??'?'}`;
+      const p = predict(f.teams.home.name, f.teams.away.name, 1.4, 1.1, 1.1, 1.2, [], []);
+      const hl = f.teams.home.logo ? `<img class="tlogo" src="${f.teams.home.logo}" onerror="this.style.display='none'">` : '';
+      const al = f.teams.away.logo ? `<img class="tlogo" src="${f.teams.away.logo}" onerror="this.style.display='none'">` : '';
+      html += `<div class="match-card" onclick="det('${f.fixture.id}')">
+        <div class="meta"><span>${f._li?.f||'⚽'} ${f.league.name}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${live?'<span class="live-badge">EN VIVO</span>':''}
+            <span style="font-family:'DM Mono',monospace">${done?sc+' FT':live?sc:t}</span>
+          </div>
+        </div>
+        <div class="match-teams">
+          <div class="team">${hl}<span class="tname">${f.teams.home.name}</span></div>
+          <div class="vs">${done?sc:'VS'}</div>
+          <div class="team away">${al}<span class="tname">${f.teams.away.name}</span></div>
+        </div>
+        ${!done?`<div class="prob-labels"><span>${f.teams.home.name.split(' ')[0]}</span><span>Empate</span><span>${f.teams.away.name.split(' ')[0]}</span></div>
+        <div class="prob-bar"><div class="pb-h" style="flex:${(p.h*100).toFixed(0)}"></div><div class="pb-d" style="flex:${(p.d*100).toFixed(0)}"></div><div class="pb-a" style="flex:${(p.a*100).toFixed(0)}"></div></div>
+        <div class="prob-vals"><span class="pv-h">${(p.h*100).toFixed(0)}%</span><span class="pv-d">${(p.d*100).toFixed(0)}%</span><span class="pv-a">${(p.a*100).toFixed(0)}%</span></div>`:''}
+      </div>`;
+    });
+    html += '<br>';
+  });
+  mc.innerHTML = html;
+}
+
+async function det(fid) {
+  const mc = document.getElementById('mc');
+  mc.innerHTML = '<button class="btn btn-sm" onclick="renderList()" style="margin-bottom:14px">← Volver</button><div class="loader"><div class="spinner"></div><span>Analizando...</span></div>';
+  const f = fixtures.find(x => String(x.fixture.id) === String(fid));
+  if (!f) return;
+  try {
+    const season = new Date().getFullYear();
+    const [h2h, hs, as2] = await Promise.all([
+      apiFetch(`/fixtures/headtohead?h2h=${f.teams.home.id}-${f.teams.away.id}&last=5`).catch(() => ({response:[]})),
+      apiFetch(`/standings?league=${f._lid}&season=${season}&team=${f.teams.home.id}`).catch(() => ({response:[]})),
+      apiFetch(`/standings?league=${f._lid}&season=${season}&team=${f.teams.away.id}`).catch(() => ({response:[]})),
+    ]);
+    const hst = standStats(hs, f.teams.home.id), ast = standStats(as2, f.teams.away.id);
+    const p = predict(f.teams.home.name, f.teams.away.name, hst.gf, ast.gf, hst.ga, ast.ga, hst.form, ast.form);
+    const h2hl = (h2h.response||[]).slice(0,5).map(fx => {
+      const hg = fx.goals.home??'?', ag = fx.goals.away??'?', w = hg>ag?'home':hg<ag?'away':'draw';
+      return { date: new Date(fx.fixture.date).toLocaleDateString('es-CO',{month:'short',year:'numeric'}), home:fx.teams.home.name, away:fx.teams.away.name, score:`${hg}-${ag}`, w };
+    });
+    const h2hH = h2hl.filter(x=>x.w==='home'&&x.home===f.teams.home.name).length;
+    const h2hD = h2hl.filter(x=>x.w==='draw').length;
+    const h2hA = h2hl.filter(x=>x.w==='away'&&x.away===f.teams.away.name).length;
+    const st = f.fixture.status.short, done = DONE_ST.includes(st), live = LIVE_ST.includes(st);
+    const sc = `${f.goals.home??'?'} — ${f.goals.away??'?'}`;
+    const hl = f.teams.home.logo ? `<img src="${f.teams.home.logo}" style="width:40px;height:40px;object-fit:contain" onerror="this.style.display='none'">` : '';
+    const al = f.teams.away.logo ? `<img src="${f.teams.away.logo}" style="width:40px;height:40px;object-fit:contain" onerror="this.style.display='none'">` : '';
+    const wc = w => p.w===w?' win':'';
+    let html = `<button class="btn btn-sm" onclick="renderList()" style="margin-bottom:14px">← Volver</button>
+    <div class="detail">
+      <div class="dh">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px">${f._li?.f||'⚽'} ${f.league.name} · ${f.league.round||''}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px">${hl}<div class="dt">${f.teams.home.name} <span style="color:var(--text3)">vs</span> ${f.teams.away.name}</div>${al}</div>
+        ${done?`<div style="font-family:'Bebas Neue',sans-serif;font-size:38px;color:var(--green)">${sc} <span style="font-size:13px;color:var(--text3);font-family:'DM Sans',sans-serif">FT</span></div>`:''}
+        ${live?`<div style="font-family:'Bebas Neue',sans-serif;font-size:38px;color:var(--red)">${sc} <span class="live-badge">EN VIVO</span></div>`:''}
+      </div>
+      ${!done?`<div style="font-size:11px;color:var(--text3);margin-bottom:9px;text-transform:uppercase;letter-spacing:.06em">Predicción</div>
+      <div class="bp">
+        <div class="bpc${wc('home')}"><div class="bpl">${f.teams.home.name}</div><div class="bpv">${(p.h*100).toFixed(0)}%</div><div class="bpo">Cuota ${p.oH}</div></div>
+        <div class="bpc${wc('draw')}"><div class="bpl">Empate</div><div class="bpv">${(p.d*100).toFixed(0)}%</div><div class="bpo">Cuota ${p.oD}</div></div>
+        <div class="bpc${wc('away')}"><div class="bpl">${f.teams.away.name}</div><div class="bpv">${(p.a*100).toFixed(0)}%</div><div class="bpo">Cuota ${p.oA}</div></div>
+      </div>`:''}
+      <div class="sg">
+        <div class="sc"><div class="sl">Goles esperados</div><div class="sv">${p.lH.toFixed(1)} – ${p.lA.toFixed(1)}</div><div class="ss2b">λ Poisson local / visitante</div></div>
+        <div class="sc"><div class="sl">Total goles</div><div class="sv">${p.eg.toFixed(1)}</div><div class="ss2b">Over 2.5: ${(p.o25*100).toFixed(0)}%</div></div>
+        <div class="sc"><div class="sl">Ambos marcan</div><div class="sv">${(p.btts*100).toFixed(0)}%</div><div class="ss2b">BTTS</div></div>
+        <div class="sc"><div class="sl">H2H</div><div class="sv">${h2hH}V ${h2hD}E ${h2hA}D</div><div class="ss2b">Últimos ${h2hl.length} enfrentamientos</div></div>
+      </div>
+      ${h2hl.length?`<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Historial H2H</div>
+      ${h2hl.map(x=>{const wc2=x.w==='home'&&x.home===f.teams.home.name?'hw':x.w==='draw'?'hd':'hl';return`<div class="h2r"><span class="h2d">${x.date}</span><span class="h2t">${x.home} vs ${x.away}</span><span class="h2s ${wc2}">${x.score}</span></div>`;}).join('')}`:''}
+      ${!done?`<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:12px;margin-bottom:5px">Confianza</div>
+      <div class="cb"><div class="cf" style="width:${(p.conf*100).toFixed(0)}%"></div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span class="bc bc${p.cl}">⬡ ${p.cn}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)">${(p.conf*100).toFixed(0)}%</span>
+      </div>
+      <div class="pb2"><div class="pb2l">✦ Apuesta recomendada</div><div class="pb2v">${p.best}</div><div class="pb2s">Basado en clasificación real, H2H y Poisson</div></div>`:''}
+    </div>
+    <div class="detail">
+      <div style="font-size:13px;font-weight:600;margin-bottom:11px">Registrar apuesta</div>
+      <div class="fr">
+        <div><div class="fl2">Mercado</div><select id="bm"><option>1X2 — ${f.teams.home.name}</option><option>1X2 — Empate</option><option>1X2 — ${f.teams.away.name}</option><option>Over 2.5 goles</option><option>Under 2.5 goles</option><option>BTTS — Sí</option><option>BTTS — No</option><option>Doble oportunidad 1X</option><option>Doble oportunidad X2</option></select></div>
+        <div><div class="fl2">Cuota</div><input type="number" id="bo" placeholder="ej. 1.85" step="0.01" min="1"></div>
+      </div>
+      <div class="fr">
+        <div><div class="fl2">Stake ($)</div><input type="number" id="bs" placeholder="ej. 10" min="0"></div>
+        <div><div class="fl2">Resultado</div><select id="br"><option value="P">Pendiente</option><option value="W">Ganada ✓</option><option value="L">Perdida ✗</option></select></div>
+      </div>
+      <button class="btn btn-green" onclick="addBet(${f.fixture.id},'${f.teams.home.name.replace(/'/g,"\\'")}','${f.teams.away.name.replace(/'/g,"\\'")}','${f.league.name.replace(/'/g,"\\'")}')">+ Guardar apuesta</button>
+    </div>`;
+    mc.innerHTML = html;
+  } catch(e) {
+    mc.innerHTML = `<button class="btn btn-sm" onclick="renderList()" style="margin-bottom:14px">← Volver</button><div class="err">⚠️ ${e.message}</div>`;
+  }
+}
+
+function addBet(fid, home, away, league) {
+  const m = document.getElementById('bm').value, o = parseFloat(document.getElementById('bo').value);
+  const s = parseFloat(document.getElementById('bs').value), r = document.getElementById('br').value;
+  if (!o || !s || isNaN(o) || isNaN(s)) { alert('Completa cuota y stake'); return; }
+  bets.unshift({ id:Date.now(), fid, home, away, league, market:m, odd:o, stake:s, result:r, date:new Date().toLocaleDateString('es-CO') });
+  try { localStorage.setItem('sb3', JSON.stringify(bets)); } catch(e) {}
+  alert('✓ Apuesta guardada');
+}
+
+function updBet(id, res) {
+  const b = bets.find(x => x.id === id);
+  if (b) { b.result = res; try { localStorage.setItem('sb3', JSON.stringify(bets)); } catch(e) {} renderTracker(); }
+}
+
+function renderTracker() {
+  const mc = document.getElementById('mc');
+  const won = bets.filter(b=>b.result==='W'), lost = bets.filter(b=>b.result==='L');
+  const settled = bets.filter(b=>b.result!=='P');
+  const ts = bets.reduce((a,b)=>a+b.stake,0), tr = won.reduce((a,b)=>a+b.stake*b.odd,0);
+  const roi = ts>0?((tr-ts)/ts*100):0, wr = settled.length>0?(won.length/settled.length*100):0;
+  let html = `<div class="sh"><div class="st">Mis apuestas</div></div>
+  <div class="ss3">
+    <div class="ssc"><div class="ssv" style="color:var(--green)">${won.length}</div><div class="ssl">Ganadas</div></div>
+    <div class="ssc"><div class="ssv" style="color:var(--red)">${lost.length}</div><div class="ssl">Perdidas</div></div>
+    <div class="ssc"><div class="ssv" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi.toFixed(1)}%</div><div class="ssl">ROI</div></div>
+    <div class="ssc"><div class="ssv">${wr.toFixed(0)}%</div><div class="ssl">Acierto</div></div>
+  </div>`;
+  if (!bets.length) { html += '<div class="empty">Aún no hay apuestas.<br>Analiza un partido y guarda la primera.</div>'; mc.innerHTML = html; return; }
+  html += `<div class="detail"><div style="display:grid;grid-template-columns:1fr 1fr 70px 70px auto;gap:8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding-bottom:7px;border-bottom:1px solid var(--border)"><span>Partido</span><span>Mercado</span><span>Cuota</span><span>P&L</span><span>Res.</span></div>`;
+  bets.forEach(b => {
+    const pl = b.result==='W'?`+$${(b.stake*(b.odd-1)).toFixed(2)}`:b.result==='L'?`-$${b.stake.toFixed(2)}`:`$${b.stake.toFixed(2)}`;
+    const pc = b.result==='W'?'var(--green)':b.result==='L'?'var(--red)':'var(--text3)';
+    html += `<div class="tr"><span style="color:var(--text2)">${b.home} vs ${b.away}</span><span style="color:var(--text3)">${b.market}</span><span style="font-family:'DM Mono',monospace">${b.odd}</span><span style="font-family:'DM Mono',monospace;color:${pc}">${pl}</span>
+    ${b.result==='P'?`<select onchange="updBet(${b.id},this.value)" style="padding:2px 5px;font-size:11px;width:auto"><option value="P" selected>⏳</option><option value="W">✓</option><option value="L">✗</option></select>`:`<span class="bb b${b.result}">${b.result==='W'?'✓':'✗'}</span>`}</div>`;
+  });
+  html += '</div>'; mc.innerHTML = html;
+}
+
+// ── INICIO (espera que el DOM esté listo) ─────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  checkStatus();
+  load();
+});
+</script>
 </body>
 </html>
