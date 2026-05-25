@@ -177,7 +177,7 @@ async function load() {
   fixtures = [];
   try {
     for (const date of dates) for (const lid of lgs) {
-      const season = new Date().getFullYear();
+      const season = 2024;
       const data = await apiFetch(`/fixtures?league=${lid}&season=${season}&date=${date}`);
       if (data.response) data.response.forEach(f => { f._lid = lid; f._li = LI[lid]; fixtures.push(f); });
     }
@@ -231,7 +231,7 @@ async function det(fid) {
   const f = fixtures.find(x => String(x.fixture.id) === String(fid));
   if (!f) return;
   try {
-    const season = new Date().getFullYear();
+    const season = 2024;
     const [h2h, hs, as2] = await Promise.all([
       apiFetch(`/fixtures/headtohead?h2h=${f.teams.home.id}-${f.teams.away.id}&last=5`).catch(() => ({response:[]})),
       apiFetch(`/standings?league=${f._lid}&season=${season}&team=${f.teams.home.id}`).catch(() => ({response:[]})),
