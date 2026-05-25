@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scout Predictor — Análisis de Fútbol</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SCOUT<span>predictor</span></div>
+  <div id="api-status" class="api-status">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Conectando...</span>
+  </div>
+  <div class="header-tabs">
+    <button class="htab active" onclick="switchMain('matches')">Partidos</button>
+    <button class="htab" onclick="switchMain('tracker')">Mis apuestas</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="s-label">Ligas</div>
+    <button class="league-btn active" onclick="filterLeague(null,this)"><span class="league-flag">🌍</span><span>Todas</span></button>
+    <button class="league-btn" onclick="filterLeague(39,this)"><span class="league-flag">🏴󠁧󠁢󠁥󠁮󠁧󠁿</span><span>Premier League</span></button>
+    <button class="league-btn" onclick="filterLeague(140,this)"><span class="league-flag">🇪🇸</span><span>La Liga</span></button>
+    <button class="league-btn" onclick="filterLeague(2,this)"><span class="league-flag">⭐</span><span>Champions</span></button>
+    <button class="league-btn" onclick="filterLeague(135,this)"><span class="league-flag">🇮🇹</span><span>Serie A</span></button>
+    <button class="league-btn" onclick="filterLeague(78,this)"><span class="league-flag">🇩🇪</span><span>Bundesliga</span></button>
+
+    <div class="s-label">Fecha</div>
+    <button class="league-btn active" onclick="setDate('today',this)"><span class="league-flag">⚡</span><span>Hoy</span></button>
+    <button class="league-btn" onclick="setDate('tomorrow',this)"><span class="league-flag">📅</span><span>Mañana</span></button>
+    <button class="league-btn" onclick="setDate('week',this)"><span class="league-flag">🗓</span><span>Esta semana</span></button>
+
+    <div class="s-label" style="margin-top:20px">Cuota diaria</div>
+    <div class="quota-info" id="quota-info">— / 100 llamadas</div>
+  </div>
+
+  <div class="content" id="main-content">
+    <div class="loader"><div class="spinner"></div><span>Cargando partidos...</span></div>
+  </div>
+</div>
+
+<script src="api.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
