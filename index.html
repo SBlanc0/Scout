@@ -173,18 +173,12 @@ async function load() {
   const mc = document.getElementById('mc');
   mc.innerHTML = '<div class="loader"><div class="spinner"></div><span>Cargando partidos...</span></div>';
   // Plan gratuito: solo temporada 2024. Mapeamos "hoy/mañana/semana" a fechas reales de 2024
-  const baseDate = new Date('2024-05-25'); // misma época del año pero en 2024
-  function d2024(offset) {
-    const d = new Date(baseDate);
-    d.setDate(d.getDate() + offset);
-    return d.toISOString().split('T')[0];
-  }
-  const dates = cDate==='today' ? [d2024(0)] : cDate==='tomorrow' ? [d2024(1)] : Array.from({length:7},(_,i)=>d2024(i));
+  const dates = cDate==='today' ? [dateStr(0)] : cDate==='tomorrow' ? [dateStr(1)] : Array.from({length:7},(_,i)=>dateStr(i));
   const lgs = cLeague ? [cLeague] : LEAGUES;
   fixtures = [];
   try {
     for (const date of dates) for (const lid of lgs) {
-      const season = 2024;
+      const season = 2025;
       const data = await apiFetch(`/fixtures?league=${lid}&season=${season}&date=${date}`);
       if (data.response) data.response.forEach(f => { f._lid = lid; f._li = LI[lid]; fixtures.push(f); });
     }
@@ -238,7 +232,7 @@ async function det(fid) {
   const f = fixtures.find(x => String(x.fixture.id) === String(fid));
   if (!f) return;
   try {
-    const season = 2024; // Free plan limit
+    const season = 2025; // Free plan limit
     const [h2h, hs, as2] = await Promise.all([
       apiFetch(`/fixtures/headtohead?h2h=${f.teams.home.id}-${f.teams.away.id}&last=5`).catch(() => ({response:[]})),
       apiFetch(`/standings?league=${f._lid}&season=${season}&team=${f.teams.home.id}`).catch(() => ({response:[]})),
