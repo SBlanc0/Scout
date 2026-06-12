@@ -1,0 +1,16 @@
+{
+  "name": "scout-predictor-wc-2026",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma de predicciones para el Mundial 2026.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}

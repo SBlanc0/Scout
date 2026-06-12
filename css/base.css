@@ -1,0 +1,98 @@
+/* ═══════════════════════════════════════════════════════════════
+   BASE.CSS — Variables, reset, tipografía
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Variables globales ── */
+:root {
+  /* Colores */
+  --green:      #00E676;
+  --green-dim:  #00C853;
+  --green-bg:   rgba(0, 230, 118, 0.08);
+  --green-border: rgba(0, 230, 118, 0.3);
+  --red:        #FF5252;
+  --red-bg:     rgba(255, 82, 82, 0.08);
+  --amber:      #FFD740;
+  --amber-bg:   rgba(255, 215, 64, 0.08);
+  --blue:       #448AFF;
+  --blue-bg:    rgba(68, 138, 255, 0.08);
+
+  /* Superficies */
+  --bg:       #0D0F14;
+  --surface:  #141720;
+  --surface2: #1C2030;
+  --surface3: #242840;
+
+  /* Bordes */
+  --border:  rgba(255, 255, 255, 0.07);
+  --border2: rgba(255, 255, 255, 0.12);
+
+  /* Texto */
+  --text:  #F0F2FF;
+  --text2: #8B90A8;
+  --text3: #555A72;
+
+  /* Tipografía */
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+
+  /* Radios */
+  --radius:    8px;
+  --radius-lg: 8px;
+  --radius-sm: 6px;
+
+  /* Transiciones */
+  --transition: all 0.2s ease;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Tipografía base ── */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: 1px;
+  line-height: 1.1;
+}
+
+a { color: var(--green); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Utilidades de texto ── */
+.text-green  { color: var(--green); }
+.text-red    { color: var(--red); }
+.text-amber  { color: var(--amber); }
+.text-muted  { color: var(--text2); }
+.text-faint  { color: var(--text3); }
+.text-mono   { font-family: var(--font-mono); }
+.text-display { font-family: var(--font-display); }
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
